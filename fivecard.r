@@ -10,7 +10,6 @@ suit <- c("s", "h", "d", "c")
 value <- c("A", 2:10, "J", "Q", "K")
 cards <- paste0(rep(value, 4), " ", suit)
 
-
 # source: https://advanced-r-solutions.rbind.io/r6.html
 ShuffledDeck <- R6Class(
   classname = "ShuffledDeck",
@@ -40,12 +39,12 @@ ShuffledDeck <- R6Class(
 
 play <- function(cards = 5, bet = 0) {
 
+  bet  <<- bet
   if (bet > 0) {
 
     if (!exists("bank")) bank <- 0
     if (bet > bank) return("Insufficient funds, deposit money")
     
-    bet  <<- bet
     bank <<- bank - bet
     
   }
@@ -56,14 +55,20 @@ play <- function(cards = 5, bet = 0) {
   hand <<- deck$draw(cards)
   print(hand)
   
+  draws_rem <<- 2
+  
 }
 
 draw <- function(cards = c()) {
   
+  if (!exists("draws_rem")) return("Use `play()` first")
   if (length(cards) < 1) return(eval(hand));
+  draws_rem <<- draws_rem - 1
   
   hand[cards] <<- deck$draw(length(cards))
   print(hand)
+  
+  if (draws_rem == 0) return(eval(hand));
   
 }
 
@@ -71,7 +76,6 @@ eval <- function(hand) {
   
   if ((!exists("bet"))) bet <- 0
   if ((!exists("bank"))) bank <- 0
-  
   
   hand <- as.character(hand)
   hand_split <- strsplit(hand, " ")
@@ -168,28 +172,22 @@ eval <- function(hand) {
     } else {
       
       bank <<- bank + bet
-      return(paste0(paste("Pair of", vals[as.numeric(as.character(freq$Var1))[1]], "s"), ifelse(bet > 0, paste0(" you win ", bet, " and your bank is ", bank), ""))) 
+      return(paste0(paste0("Pair of ", vals[as.numeric(as.character(freq$Var1))[1]], "s"), ifelse(bet > 0, paste0(" you win ", bet, " and your bank is ", bank), ""))) 
   
     }
   }
     
   return(paste(vals[max(hand_list$card)], "High, you lose your bet"));
-
 }
 
 deposit <- function(x) {
-  
-  if (exists("bank")) bank <<- bank + x
-  
+  if (exists("bank")) bank <<- bank + x  
   bank <<- x
-  
 }
 
 checkBank <- function() {
-  
   if (!exists("bank")) bank <- 0
   bank
-  
 }
 
 # Sample
