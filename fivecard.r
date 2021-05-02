@@ -10,6 +10,7 @@ suit <- c("s", "h", "d", "c")
 value <- c("A", 2:10, "J", "Q", "K")
 cards <- paste0(rep(value, 4), " ", suit)
 
+
 # source: https://advanced-r-solutions.rbind.io/r6.html
 ShuffledDeck <- R6Class(
   classname = "ShuffledDeck",
@@ -37,45 +38,93 @@ ShuffledDeck <- R6Class(
   )
 )
 
-play <- function(cards = 5, bet = 0) {
+Player <- R6Class(
+  classname = "Player",
+  public = list(
+    bank = 0,
+    deposit = function(dollars) {
+      self$bank <- self$bank + dollars
+      invisible(self)
+    },
+    deck = NULL,
+    hand = NULL,
+    new_game = function(ante) {
+      
+      if (ante > self$bank) stop("Please add funds to play")
+      
+      self$bank <- self$bank - ante
+      self$deck <- shuffle()
+      self$hand <- deal(self$deck)
+      
+      print(paste0("$", ante, " paid, hand dealt"))
+      print("Your hand is:")
+      print(self$hand)
+      print("Make your bet")
+      
+      invisible(self)
+    },
+    has_bet = FALSE,
+    bet = 0,
+    make_bet = function(dollars) {
+      
+      if (dollars > self$bank) stop("Bet exceeds balance")
+      
+      self$has_bet <- TRUE
+      self$bet <- dollars
+      self$bank <- self$bank - dollars
+      
+      invisible(self)
+    },
+    draw = function(c1=FALSE,c2=FALSE,c3=FALSE,c4=FALSE,c5=FALSE) {
+      
+      if (!self$has_bet) stop("Bet before drawing")
+      req <- c(c1,c2,c3,c4,c5)
+      has_draw <- any(req)
+      
+      if (has_draw) {
+        new_cards <- draw(self$deck, sum(req))
+        self$hand[req] <- new_cards
+        print(self$hand)
+      }
+      
+      win <- eval(self$hand, self$bet)
+      self$bank <- self$bank + win
+      if (win > 0) print(paste0("You won $", win))
+      print(paste0("Your bank is now $", self$bank))
+      
+      self$has_bet <- FALSE
+      self$bet <- 0
+      self$deck <- NULL
+      self$hand <- NULL
+      
+      invisible(self)
+    },
+    balance = function() {
+      print(self$bank)
+    }
+  )
+)
 
-  bet  <<- bet
-  if (bet > 0) {
-
-    if (!exists("bank")) bank <- 0
-    if (bet > bank) return("Insufficient funds, deposit money")
-    
-    bank <<- bank - bet
-    
-  }
+shuffle <- function() {
   
   deck <- ShuffledDeck$new()
-  deck <<- deck$reshuffle()
-  
-  hand <<- deck$draw(cards)
-  print(hand)
-  
-  draws_rem <<- 2
+  deck$reshuffle()
   
 }
 
-draw <- function(cards = c()) {
+deal <- function(deck) {
   
-  if (!exists("draws_rem")) return("Use `play()` first")
-  if (length(cards) < 1) return(eval(hand));
-  draws_rem <<- draws_rem - 1
-  
-  hand[cards] <<- deck$draw(length(cards))
-  print(hand)
-  
-  if (draws_rem == 0) return(eval(hand));
+  deck$draw(5)
   
 }
 
-eval <- function(hand) {
+draw <- function(deck, cards) {
   
-  if ((!exists("bet"))) bet <- 0
-  if ((!exists("bank"))) bank <- 0
+  deck$draw(cards)
+  
+}
+
+eval <- function(hand, bet) {
   
   hand <- as.character(hand)
   hand_split <- strsplit(hand, " ")
@@ -109,28 +158,29 @@ eval <- function(hand) {
     
     if (straight && max(hand_list$card) == 14) {
       
-      bank <<- bank + bet * 5000 
-      return(paste0("Royal Flush", ifelse(bet > 0, paste0(" you win ", bet * 5000, " and your bank is ", bank), "")))
+      print("Royal Flush")
+      return(bet * 5000)
     
     }
     
     if (flush) { 
       
       if (straight) {
-      
-        bank <<- bank + bet * 500
-        return(paste0("Straight Flush", ifelse(bet > 0, paste0(" you win ", bet * 500, " and your bank is ", bank), ""))) 
+        
+        print("Straight Flush")
+        return(bet * 500) 
     
       } else {
       
-        bank <<- bank + bet * 25
-        return(paste0("Flush", ifelse(bet > 0, paste0(" you win ", bet * 25, " and your bank is ", bank), ""))) 
+        print("Flush")
+        return(bet * 25) 
       
       }
+      
     }
     
-    bank <<- bank + bet * 12.5
-    return(paste0("Straight", ifelse(bet > 0, paste0(" you win ", bet * 12.5, " and your bank is ", bank), ""))) 
+    print("Straight")
+    return(bet * 12.5) 
     
   }
   
@@ -140,8 +190,8 @@ eval <- function(hand) {
   
   if (max(freq$Freq) == 4) {
     
-    bank <<- bank + bet * 75
-    return(paste0("Four of a Kind", ifelse(bet > 0, paste0(" you win ", bet * 75, " and your bank is ", bank), ""))) 
+    print("Four of a Kind")
+    return(bet * 75) 
     
   }
   
@@ -149,13 +199,13 @@ eval <- function(hand) {
     
     if (min(freq$Freq) == 2) {
       
-      bank <<- bank + bet * 37.5
-      return(paste0("Full House", ifelse(bet > 0, paste0(" you win ", bet * 37.5, " and your bank is ", bank), ""))) 
+      print("Full House")
+      return(bet * 37.5) 
       
     } else {
       
-      bank <<- bank + bet * 2.5
-      return(paste0("Three of a Kind", ifelse(bet > 0, paste0(" you win ", bet * 2.5, " and your bank is ", bank), ""))) 
+      print("Three of a Kind")
+      return(bet * 2.5) 
       
     }
     
@@ -165,32 +215,22 @@ eval <- function(hand) {
     
     if (freq$Freq[2] == 2) {
       
-      bank <<- bank + bet * 1.5
-      return(paste0("Two Pair", ifelse(bet > 0, paste0(" you win ", bet * 1.5, " and your bank is ", bank), ""))) 
+      print("Two Pair")
+      return(bet * 1.5) 
       
+    } else if (as.numeric(as.character(freq$Var1))[1] > 10) {
       
+      print(paste0("Pair of ", vals[as.numeric(as.character(freq$Var1))[1]], "s"))
+      return(bet) 
+  
     } else {
       
-      bank <<- bank + bet
-      return(paste0(paste0("Pair of ", vals[as.numeric(as.character(freq$Var1))[1]], "s"), ifelse(bet > 0, paste0(" you win ", bet, " and your bank is ", bank), ""))) 
-  
+      print(paste0("Pair of ", vals[as.numeric(as.character(freq$Var1))[1]], "s"))
+      return(0) 
+      
     }
   }
-    
-  return(paste(vals[max(hand_list$card)], "High, you lose your bet"));
+   
+  print(paste(vals[max(hand_list$card)], "High"))
+  return(0)
 }
-
-deposit <- function(x) {
-  if (exists("bank")) bank <<- bank + x  
-  bank <<- x
-}
-
-checkBank <- function() {
-  if (!exists("bank")) bank <- 0
-  bank
-}
-
-# Sample
-deposit(100)
-play(bet = 100)
-draw()
